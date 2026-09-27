@@ -1,4 +1,4 @@
-const CACHE = 'densha-sound-v2';
+const CACHE = 'densha-sound-v3';
 const ASSETS = [
   './',
   './index.html',

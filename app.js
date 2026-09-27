@@ -163,14 +163,24 @@ async function startRecording(slotId, button) {
     activeRecorder.start();
     button.classList.add('recording');
     button.textContent = '● 録音中…';
+
+    // 録音開始前に描画されていた「停止して保存」は disabled なので、
+    // 録音を開始したカードの停止ボタンをここで明示的に有効化する。
+    const card = button.closest('.slot-card');
+    const stopButton = card?.querySelector('.stop-btn');
+    if (stopButton) stopButton.disabled = false;
   } catch (err) {
     console.error(err);
     alert('マイクを使えませんでした。iPhoneの設定で、このWebアプリのマイクを許可してください。');
   }
 }
 
-function stopRecording() {
-  if (activeRecorder?.state === 'recording') activeRecorder.stop();
+function stopRecording(button) {
+  if (activeRecorder?.state === 'recording') {
+    // 二重タップを防ぎつつ、MediaRecorder の onstop で保存する。
+    if (button) button.disabled = true;
+    activeRecorder.stop();
+  }
 }
 
 async function importAudioFile(slotId, file) {
@@ -239,7 +249,7 @@ async function renderSettings() {
     const fileInput = card.querySelector('.audio-file-input');
     input.addEventListener('change', () => saveLabel(slot, input.value));
     card.querySelector('.record-btn').addEventListener('click', e => startRecording(slot.id, e.currentTarget));
-    card.querySelector('.stop-btn').addEventListener('click', stopRecording);
+    card.querySelector('.stop-btn').addEventListener('click', e => stopRecording(e.currentTarget));
     card.querySelector('.file-btn').addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', async () => {
       const file = fileInput.files?.[0];
