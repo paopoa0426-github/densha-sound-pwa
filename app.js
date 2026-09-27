@@ -2,11 +2,7 @@ const DB_NAME = 'denshaSoundDB';
 const DB_VERSION = 1;
 const STORE = 'sounds';
 const DEFAULT_PIN = '2580';
-const slots = [
-  { id: '1', defaultLabel: '放送 1' },
-  { id: '2', defaultLabel: '放送 2' },
-  { id: '3', defaultLabel: 'ベル' }
-];
+const slots = ['7','8','9','4','5','6','1','2','3','0'].map(id => ({ id, defaultLabel: id }));
 
 let db;
 let activeRecorder = null;
@@ -66,12 +62,7 @@ function dbDelete(id) {
 }
 
 function getPin() { return localStorage.getItem('parentPin') || DEFAULT_PIN; }
-function getLabel(slot) { return localStorage.getItem(`label-${slot.id}`) || slot.defaultLabel; }
-function saveLabel(slot, label) {
-  const cleaned = label.trim() || slot.defaultLabel;
-  localStorage.setItem(`label-${slot.id}`, cleaned);
-  document.getElementById(`label${slot.id}`).textContent = cleaned;
-}
+function getLabel(slot) { return slot.defaultLabel; }
 
 function stopCurrentAudio() {
   if (currentAudio) {
@@ -82,10 +73,15 @@ function stopCurrentAudio() {
 }
 
 async function playSlot(id) {
-  stopCurrentAudio();
-  const slot = slots.find(s => s.id === id);
-  const record = await dbGet(id);
-  if (record?.blob) {
+  try {
+    stopCurrentAudio();
+    const slot = slots.find(s => s.id === id);
+    const record = await dbGet(id);
+    if (!record?.blob) {
+      setStatus(`${getLabel(slot)} はまだ登録されていません`);
+      navigator.vibrate?.(40);
+      return;
+    }
     const url = URL.createObjectURL(record.blob);
     const audio = new Audio(url);
     currentAudio = audio;
@@ -93,7 +89,7 @@ async function playSlot(id) {
     audio.onended = () => {
       URL.revokeObjectURL(url);
       currentAudio = null;
-      setStatus('ボタンをおしてね');
+      setStatus('ボタンをおしてください');
     };
     audio.onerror = () => {
       URL.revokeObjectURL(url);
@@ -101,35 +97,10 @@ async function playSlot(id) {
       setStatus('音声を再生できませんでした');
     };
     await audio.play();
-  } else if (id === '3') {
-    playBuiltInBell();
-  } else {
-    setStatus(`${getLabel(slot)} はまだ録音されていません`);
-    navigator.vibrate?.(40);
+  } catch (e) {
+    console.error(e);
+    setStatus('音声を再生できませんでした');
   }
-}
-
-function playBuiltInBell() {
-  const AudioCtx = window.AudioContext || window.webkitAudioContext;
-  if (!AudioCtx) return;
-  const ctx = new AudioCtx();
-  const now = ctx.currentTime;
-  const master = ctx.createGain();
-  master.connect(ctx.destination);
-  master.gain.setValueAtTime(0.0001, now);
-  master.gain.exponentialRampToValueAtTime(0.55, now + 0.02);
-  master.gain.exponentialRampToValueAtTime(0.0001, now + 1.25);
-  [880, 1174.66].forEach((freq, i) => {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = freq;
-    gain.gain.value = i === 0 ? 0.8 : 0.45;
-    osc.connect(gain); gain.connect(master);
-    osc.start(now + i * 0.16); osc.stop(now + 1.3);
-  });
-  setStatus('ベルを再生中');
-  setTimeout(() => { setStatus('ボタンをおしてね'); ctx.close(); }, 1400);
 }
 
 function preferredMimeType() {
@@ -154,30 +125,26 @@ async function startRecording(slotId, button) {
     activeRecorder.ondataavailable = e => { if (e.data?.size) activeChunks.push(e.data); };
     activeRecorder.onstop = async () => {
       const blob = new Blob(activeChunks, { type: activeRecorder.mimeType || mime || 'audio/mp4' });
-      await dbPut({ id: activeSlot, blob, mimeType: blob.type, sourceType: 'recording', sourceName: 'このiPhoneで録音', updatedAt: Date.now() });
+      await dbPut({ id: activeSlot, blob, mimeType: blob.type, sourceType: 'recording', sourceName: 'この iPhone で録音', updatedAt: Date.now() });
       activeStream?.getTracks().forEach(t => t.stop());
       activeRecorder = null; activeStream = null; activeChunks = []; activeSlot = null;
-      renderSettings();
+      await renderSettings();
       setStatus('録音を保存しました');
     };
     activeRecorder.start();
     button.classList.add('recording');
-    button.textContent = '● 録音中…';
-
-    // 録音開始前に描画されていた「停止して保存」は disabled なので、
-    // 録音を開始したカードの停止ボタンをここで明示的に有効化する。
+    button.textContent = '録音中';
     const card = button.closest('.slot-card');
     const stopButton = card?.querySelector('.stop-btn');
     if (stopButton) stopButton.disabled = false;
   } catch (err) {
     console.error(err);
-    alert('マイクを使えませんでした。iPhoneの設定で、このWebアプリのマイクを許可してください。');
+    alert('マイクを使えませんでした。iPhone の設定で、この Web アプリのマイクを許可してください。');
   }
 }
 
 function stopRecording(button) {
   if (activeRecorder?.state === 'recording') {
-    // 二重タップを防ぎつつ、MediaRecorder の onstop で保存する。
     if (button) button.disabled = true;
     activeRecorder.stop();
   }
@@ -187,7 +154,7 @@ async function importAudioFile(slotId, file) {
   if (!file) return;
   const MAX_BYTES = 50 * 1024 * 1024;
   if (file.size > MAX_BYTES) {
-    alert('音声ファイルが大きすぎます。50MB以下を目安にしてください。');
+    alert('音声ファイルが大きすぎます。50MB 以下を目安にしてください。');
     return;
   }
 
@@ -195,7 +162,7 @@ async function importAudioFile(slotId, file) {
   const name = (file.name || '').toLowerCase();
   const looksLikeAudio = type.startsWith('audio/') || /\.(mp3|m4a|mp4|wav|aac|caf|aif|aiff|webm|ogg)$/i.test(name);
   if (!looksLikeAudio) {
-    alert('音声ファイルを選んでください。MP3・M4A・WAVなどが使えます。');
+    alert('音声ファイルを選んでください。MP3・M4A・WAV などが使えます。');
     return;
   }
 
@@ -210,18 +177,17 @@ async function importAudioFile(slotId, file) {
       updatedAt: Date.now()
     });
     await renderSettings();
-    const slot = slots.find(s => s.id === slotId);
-    setStatus(`${getLabel(slot)} に音声ファイルを登録しました`);
+    setStatus(`${slotId} に音声ファイルを登録しました`);
   } catch (err) {
     console.error(err);
     alert('音声ファイルを保存できませんでした。別のファイルで試してください。');
   }
 }
 
-function describeRecord(record, slotId) {
-  if (!record) return slotId === '3' ? '音声未登録（標準ベル音を使用）' : '音声はまだ登録されていません';
+function describeRecord(record) {
+  if (!record) return '音声はまだ登録されていません';
   if (record.sourceType === 'file') return `音声ファイル：${record.sourceName || '登録済み'}`;
-  return 'このiPhoneで録音した音声を使用';
+  return 'この iPhone で録音した音声を使用';
 }
 
 async function renderSettings() {
@@ -232,22 +198,18 @@ async function renderSettings() {
     const card = document.createElement('article');
     card.className = 'slot-card';
     card.innerHTML = `
-      <h3>${slot.id === '1' ? '🔴' : slot.id === '2' ? '🟡' : '🟢'} ボタン ${slot.id}</h3>
-      <label>ボタン名</label>
-      <input class="label-input" value="${escapeHtml(getLabel(slot))}" maxlength="16" />
+      <h3><span class="slot-number">${slot.id}</span>ボタン ${slot.id}</h3>
       <div class="slot-actions">
-        <button class="record-btn">● その場で録音</button>
-        <button class="stop-btn" ${activeSlot === slot.id ? '' : 'disabled'}>■ 停止して保存</button>
-        <button class="file-btn">📁 音声ファイルを選ぶ</button>
+        <button class="record-btn">録音</button>
+        <button class="stop-btn" ${activeSlot === slot.id ? '' : 'disabled'}>停止して保存</button>
+        <button class="file-btn">音声ファイルを選ぶ</button>
         <input class="audio-file-input" type="file" accept="audio/*,.mp3,.m4a,.wav,.aac,.caf,.aif,.aiff,.webm,.ogg" hidden />
-        <button class="play-btn" ${record ? '' : (slot.id === '3' ? '' : 'disabled')}>▶ 試しに再生</button>
+        <button class="play-btn" ${record ? '' : 'disabled'}>試しに再生</button>
         <button class="delete-btn" ${record ? '' : 'disabled'}>音声を消す</button>
       </div>
-      <small class="source-info">${escapeHtml(describeRecord(record, slot.id))}</small>
+      <small class="source-info">${escapeHtml(describeRecord(record))}</small>
     `;
-    const input = card.querySelector('.label-input');
     const fileInput = card.querySelector('.audio-file-input');
-    input.addEventListener('change', () => saveLabel(slot, input.value));
     card.querySelector('.record-btn').addEventListener('click', e => startRecording(slot.id, e.currentTarget));
     card.querySelector('.stop-btn').addEventListener('click', e => stopRecording(e.currentTarget));
     card.querySelector('.file-btn').addEventListener('click', () => fileInput.click());
@@ -258,15 +220,16 @@ async function renderSettings() {
     });
     card.querySelector('.play-btn').addEventListener('click', () => playSlot(slot.id));
     card.querySelector('.delete-btn').addEventListener('click', async () => {
-      if (!confirm('このボタンに登録した音声を消しますか？')) return;
-      await dbDelete(slot.id); renderSettings();
+      if (!confirm(`${slot.id} に登録した音声を消しますか？`)) return;
+      await dbDelete(slot.id);
+      renderSettings();
     });
     root.appendChild(card);
   }
 }
 
 function escapeHtml(str) {
-  return str.replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[c]));
+  return String(str).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[c]));
 }
 
 function openPinDialog() {
@@ -287,7 +250,10 @@ function cancelHold() { clearTimeout(holdTimer); }
 
 async function init() {
   db = await openDB();
-  slots.forEach(s => document.getElementById(`label${s.id}`).textContent = getLabel(s));
+  slots.forEach(s => {
+    const el = document.getElementById(`label${s.id}`);
+    if (el) el.textContent = getLabel(s);
+  });
   document.querySelectorAll('.sound-btn').forEach(btn => btn.addEventListener('click', () => playSlot(btn.dataset.slot)));
 
   const p = document.getElementById('parentBtn');
@@ -314,12 +280,12 @@ async function init() {
       return;
     }
     settingsDialog.close();
-    setStatus('ボタンをおしてね');
+    setStatus('ボタンをおしてください');
   });
 
   document.getElementById('savePin').addEventListener('click', () => {
     const v = document.getElementById('newPin').value.trim();
-    if (!/^\d{4,8}$/.test(v)) return alert('暗証番号は4〜8桁の数字にしてください。');
+    if (!/^\d{4,8}$/.test(v)) return alert('暗証番号は 4〜8 桁の数字にしてください。');
     localStorage.setItem('parentPin', v);
     alert('暗証番号を変更しました。');
   });

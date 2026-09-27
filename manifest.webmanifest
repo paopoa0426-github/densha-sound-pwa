@@ -1,13 +1,13 @@
 {
-  "name": "でんしゃ放送",
-  "short_name": "でんしゃ放送",
-  "description": "子どもの電車ごっこ用。3つの大きなボタンで録音した放送やベルを再生します。",
+  "name": "でんしゃパッド",
+  "short_name": "でんしゃパッド",
+  "description": "子どもの電車ごっこ用。数字ボタン 10 個で登録した音声を再生します。",
   "lang": "ja",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#eaf6ff",
+  "background_color": "#ffffff",
   "theme_color": "#0b4f8a",
   "icons": [
     {"src":"icons/icon-192.png","sizes":"192x192","type":"image/png"},
