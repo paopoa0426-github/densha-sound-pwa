@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#0b4f8a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="でんしゃ放送" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/icon-180.png" />
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="style.css" />
+  <title>でんしゃ放送</title>
+</head>
+<body>
+  <main class="app-shell" aria-label="でんしゃ放送アプリ">
+    <header class="app-header">
+      <div>
+        <div class="eyebrow">TRAIN PLAY</div>
+        <h1>🚃 でんしゃ放送</h1>
+      </div>
+      <button id="parentBtn" class="parent-btn" aria-label="おとな設定。2秒長押し">⚙️</button>
+    </header>
+
+    <section class="status-panel" aria-live="polite">
+      <span class="status-dot"></span>
+      <span id="statusText">ボタンをおしてね</span>
+    </section>
+
+    <section class="sound-grid">
+      <button class="sound-btn red" data-slot="1">
+        <span class="sound-icon">📢</span>
+        <span class="sound-label" id="label1">放送 1</span>
+        <span class="sound-sub">タップして再生</span>
+      </button>
+
+      <button class="sound-btn yellow" data-slot="2">
+        <span class="sound-icon">📣</span>
+        <span class="sound-label" id="label2">放送 2</span>
+        <span class="sound-sub">タップして再生</span>
+      </button>
+
+      <button class="sound-btn green" data-slot="3">
+        <span class="sound-icon">🔔</span>
+        <span class="sound-label" id="label3">ベル</span>
+        <span class="sound-sub">タップして再生</span>
+      </button>
+    </section>
+
+    <footer class="app-footer">⚙️は、おとなが2秒長押し</footer>
+  </main>
+
+  <dialog id="pinDialog" class="dialog-card">
+    <form method="dialog" id="pinForm">
+      <h2>おとな設定</h2>
+      <p>暗証番号を入力してください。</p>
+      <input id="pinInput" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" placeholder="初期値 2580" />
+      <p id="pinError" class="error-text" hidden>暗証番号が違います。</p>
+      <div class="dialog-actions">
+        <button type="button" id="pinCancel" class="secondary">キャンセル</button>
+        <button value="default" id="pinOk" class="primary">開く</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="settingsDialog" class="settings-dialog">
+    <div class="settings-wrap">
+      <header class="settings-header">
+        <div>
+          <div class="eyebrow">PARENT MODE</div>
+          <h2>おとな設定</h2>
+        </div>
+        <button id="closeSettings" class="close-btn" aria-label="設定を閉じる">✕</button>
+      </header>
+
+      <section class="help-box">
+        <strong>音の登録方法</strong><br />
+        ①「録音」でその場で録る、または ②「音声ファイルを選ぶ」でMP3・M4A・WAVなどを登録できます。<br />
+        録音するときは「録音」→ iPhoneに向かって話す →「停止して保存」です。最初だけマイクの許可が出ます。
+      </section>
+
+      <section id="slotSettings" class="slot-settings"></section>
+
+      <section class="parent-options">
+        <h3>おとな用設定</h3>
+        <label>
+          暗証番号
+          <input id="newPin" inputmode="numeric" pattern="[0-9]*" maxlength="8" />
+        </label>
+        <button id="savePin" class="secondary wide">暗証番号を変更</button>
+      </section>
+
+      <section class="info-box">
+        <strong>音声データについて</strong><br />
+        録音した音声や選んだ音声ファイルは、このiPhoneのブラウザ内に保存します。このPWAから外部へ自動送信しません。
+      </section>
+    </div>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
